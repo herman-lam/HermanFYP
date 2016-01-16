@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>Interactive Exploration</title>
+    <meta name="viewport" content="initial-scale=1.0">
+        <meta charset="utf-8">
+        <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+        }
+        </style>
+    </head>
+
+    <script src="http://code.jquery.com/jquery-1.9.0.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+
+    <!-- Google maps plotter OLD 
+    <script>
+        var map;
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
+            var coord_itineraire_arr = coord_itineraire.split("/");
+            var flightPlanCoordinates = [];
+
+            for (var key in coord_itineraire_arr) {
+                var temp = coord_itineraire_arr[key].split(",");
+                flightPlanCoordinates.push(new google.maps.LatLng(parseFloat(temp[0]), parseFloat(temp[1])));
+            }
+
+            var flightPath = new google.maps.Polyline({
+                path: flightPlanCoordinates,
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+            flightPath.setMap(map);
+        }
+    </script>
+    -->
+
+    <!-- GPS: Read JSON, parse to usable format -->
+    <script>
+        var coordinates = [];
+
+        $.getJSON("/gpsPoll/index.php?day=27", function (result) {
+            $.each(result, function (key, val) {
+               $.each(val, function (key, val) {
+                    coordinates.push(val);
+                })
+            })
+        })
+    </script>
+
+    <!-- Map initialization -->
+    <script>
+        var map;
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDdSbxgDLATykOGf0yGqdM6PbBSms90pg4&callback=initMap"
+    async defer></script>
+
+    <!-- Loop for adding maps -->
+    <script>
+        var a = coordinates;
+        var flightPath;
+        function routePlot(){
+            var fpa = [];
+            var b = [];
+            var i = 0;
+            while (i < a.length) {
+                b[0] = parseFloat(a[i]);
+                b[1] = parseFloat(a[i + 1]);
+                fpa.push(new google.maps.LatLng(b[0], b[1]));
+                i+=2;
+            }
+
+            flightPath = new google.maps.Polyline({
+                path: fpa,
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+            flightPath.setMap(map);
+        }
+    </script>
+
+    <!-- SensorTime: Read JSON, parse to usable format -->
+    <script>
+        var epochValues = [];
+
+        $.getJSON("/sensorTimePoll/index.php?day=11", function (result) {
+            $.each(result, function (key, val) {
+               $.each(val, function (key, val) {
+                    epochValues.push(val);
+                })
+            })
+        })
+    </script>
+
+    <!-- Parse JS Date Object 
+    <script>
+    var input = '[ ';
+    function epochParser(){
+        $.each(epochValues, function (key, epoch) {
+            var extTime = [];
+            epoch = parseFloat(epoch);
+            val = new Date(0);
+            val.setUTCSeconds(epoch);
+            var timeString = val.toLocaleTimeString();
+            var splited = timeString.split(':');
+            extTime.push(splited[0], splited[1]);
+            tempInput = "[ Date.UTC(1970, 0, 1, " + extTime[0] + ", " + extTime[1] + "), 1], ";
+            input = input.concat(tempInput);
+        })
+        input = input.substring(0, input.length -2);
+        var closing = ' ]';
+        input = input.concat(closing);
+        console.log(input);
+    }
+    </script>
+    -->
+
+    <script>
+    var dataArray = [];
+
+    function newEpochParser(){
+            $.each(epochValues, function (key, epoch) {
+                var timeTemp = [];
+                var arrayOfArray = [];
+                var extTime = [];
+                epoch = parseFloat(epoch);
+                val = new Date(0);
+                val.setUTCSeconds(epoch);
+                var timeString = val.toTimeString();
+                var splited = timeString.split(':');
+                extTime.push(splited[0], splited[1]);
+                timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1]);
+                timeTemp[0] = Date.parse(timeTemp[0]);
+                arrayOfArray.push(timeTemp[0], 1);
+                dataArray.push(arrayOfArray);
+        })
+        JSON.stringify(dataArray);
+        console.log("DONE!");
+    }
+
+    </script>
+
+    <!-- High charts -->
+    <script>
+        $(function () {
+            $('#chartContainer').highcharts({
+                chart: {
+                    type: 'spline'
+                },
+                title: {
+                    text: 'Air Quality Sensor Readings'
+                },
+                subtitle: {
+                    text: 'Interactive Exploration'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    dateTimeLabelFormats: {
+                        minute: '%H:%M'
+                    },
+                    title: {
+                        text: 'Time'
+                    },
+                },
+                yAxis: {
+                    title: {
+                        text: 'Readings'
+                    },
+                    min: 0
+                },
+                tooltip: {
+                    headerFormat: '<b>{series.name}</b><br>'
+                },
+
+                series: [{
+                    name: '%RH',
+                    data: dataArray
+                }]
+            });
+        });
+
+    </script>
+    
+<body>
+    <form id="form1" runat="server">
+    <div>Interactive Exploration of Sensor Data in Vehicle Traces</div>
+    </form>
+    <input id="Button1" type="button" value="Plot" onclick="routePlot()" />
+    <input id="Button2" type="button" value="Load Chart Data" onclick="newEpochParser()" />
+    <div style="align-items:center;">
+    <div id="map" style="height: 595px; width: 655px; display:inline-block;"></div>
+    <div id="chartContainer" style="height: 595px; width: 655px; display:inline-block;"></div>
+    </body>
+    </div>
+</html>
