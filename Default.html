@@ -98,15 +98,68 @@
 
     <!-- SensorTime: Read JSON, parse to usable format -->
     <script>
+    $(function (){
         var epochValues = [];
-
-        $.getJSON("/sensorTimePoll/index.php?day=11", function (result) {
+        $.getJSON("/sensorTimePoll/index.php?day=27", function (result) {
             $.each(result, function (key, val) {
-               $.each(val, function (key, val) {
+                $.each(val, function (key, val) {
                     epochValues.push(val);
+                    var dataArray = [];
+                    $.each(epochValues, function (key, epoch) {
+                       var timeTemp = [];
+                       var arrayOfArray = [];
+                       var extTime = [];
+                       epoch = parseFloat(epoch);
+                       val = new Date(0);
+                       val.setUTCSeconds(epoch);
+                       var timeString = val.toTimeString();
+                       var splited = timeString.split(':');
+                       extTime.push(splited[0], splited[1]);
+                       timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1]);
+                       timeTemp[0] = Date.parse(timeTemp[0]);
+                       arrayOfArray.push(timeTemp[0], Math.random());
+                       dataArray.push(arrayOfArray);
+                    })
+                    $('#chartContainer').highcharts({
+                        chart: {
+                            type: 'spline',
+                            zoomType: 'x',
+                            panning: true,
+                            panKey: 'shift'
+                        },
+                        title: {
+                            text: 'Air Quality Sensor Readings'
+                        },
+                        subtitle: {
+                            text: 'Interactive Exploration'
+                        },
+                        xAxis: {
+                            type: 'datetime',
+                            dateTimeLabelFormats: {
+                            minute: '%H:%M'
+                        },
+                            title: {
+                                text: 'Time'
+                            },
+                        },
+                        yAxis: {
+                            title: {
+                                text: 'Readings'
+                            },
+                            min: 0
+                        },
+                        tooltip: {
+                            headerFormat: '<b>{series.name}</b><br>'
+                        },
+                        series: [{
+                            name: '%RH',
+                            data: dataArray
+                        }]
+                    })
                 })
             })
         })
+    })
     </script>
 
     <!-- Parse JS Date Object 
@@ -133,67 +186,13 @@
     -->
 
     <script>
-    var dataArray = [];
-
-    function newEpochParser(){
-            $.each(epochValues, function (key, epoch) {
-                var timeTemp = [];
-                var arrayOfArray = [];
-                var extTime = [];
-                epoch = parseFloat(epoch);
-                val = new Date(0);
-                val.setUTCSeconds(epoch);
-                var timeString = val.toTimeString();
-                var splited = timeString.split(':');
-                extTime.push(splited[0], splited[1]);
-                timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1]);
-                timeTemp[0] = Date.parse(timeTemp[0]);
-                arrayOfArray.push(timeTemp[0], 1);
-                dataArray.push(arrayOfArray);
-        })
-        JSON.stringify(dataArray);
-        console.log("DONE!");
-    }
 
     </script>
 
     <!-- High charts -->
     <script>
         $(function () {
-            $('#chartContainer').highcharts({
-                chart: {
-                    type: 'spline'
-                },
-                title: {
-                    text: 'Air Quality Sensor Readings'
-                },
-                subtitle: {
-                    text: 'Interactive Exploration'
-                },
-                xAxis: {
-                    type: 'datetime',
-                    dateTimeLabelFormats: {
-                        minute: '%H:%M'
-                    },
-                    title: {
-                        text: 'Time'
-                    },
-                },
-                yAxis: {
-                    title: {
-                        text: 'Readings'
-                    },
-                    min: 0
-                },
-                tooltip: {
-                    headerFormat: '<b>{series.name}</b><br>'
-                },
-
-                series: [{
-                    name: '%RH',
-                    data: dataArray
-                }]
-            });
+;
         });
 
     </script>
