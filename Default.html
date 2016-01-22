@@ -13,7 +13,7 @@
             padding: 0;
         }
         #map {
-            height: 100%;
+            height: 100%;t
         }
         </style>
     </head>
@@ -22,30 +22,28 @@
     <script src="https://code.highcharts.com/highcharts.js"></script>
     <script src="https://code.highcharts.com/modules/exporting.js"></script>
 
-    <!-- Google maps plotter OLD 
     <script>
-        var map;
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
-            var coord_itineraire_arr = coord_itineraire.split("/");
-            var flightPlanCoordinates = [];
+            var map;
+            function initMap() {
+                map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
+                var coord_itineraire_arr = coord_itineraire.split("/");
+                var flightPlanCoordinates = [];
 
-            for (var key in coord_itineraire_arr) {
-                var temp = coord_itineraire_arr[key].split(",");
-                flightPlanCoordinates.push(new google.maps.LatLng(parseFloat(temp[0]), parseFloat(temp[1])));
-            }
+                for (var key in coord_itineraire_arr) {
+                    var temp = coord_itineraire_arr[key].split(",");
+                    flightPlanCoordinates.push(new google.maps.LatLng(parseFloat(temp[0]), parseFloat(temp[1])));
+                }
 
-            var flightPath = new google.maps.Polyline({
-                path: flightPlanCoordinates,
-                geodesic: true,
-                strokeColor: '#FF0000',
-                strokeOpacity: 1.0,
-                strokeWeight: 2
-            });
-            flightPath.setMap(map);
+                var flightPath = new google.maps.Polyline({
+                    path: flightPlanCoordinates,
+                    geodesic: true,
+                    strokeColor: '#FF0000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 2
+                });
+                flightPath.setMap(map);
         }
     </script>
-    -->
 
     <!-- GPS: Read JSON, parse to usable format -->
     <script>
@@ -96,15 +94,26 @@
         }
     </script>
 
-    <!-- SensorTime: Read JSON, parse to usable format -->
+    <!-- Sensor: Read JSON, parse to usable format, and display -->
     <script>
     $(function (){
-        var epochValues = [];
+        var valueArray = [];
+        var timeArray = [];
+        var dataArray = [];
+        $.getJSON("/sensorValuePoll/index.php?day=27", function(result){
+            $.each(result, function (key, val){
+                $.each(val, function (key, val){
+                    val = parseFloat(val);
+                    valueArray.push(val);
+                })
+            })
+        })
+
         $.getJSON("/sensorTimePoll/index.php?day=27", function (result) {
             $.each(result, function (key, val) {
                 $.each(val, function (key, val) {
+                    var epochValues = [];
                     epochValues.push(val);
-                    var dataArray = [];
                     $.each(epochValues, function (key, epoch) {
                        var timeTemp = [];
                        var arrayOfArray = [];
@@ -114,49 +123,55 @@
                        val.setUTCSeconds(epoch);
                        var timeString = val.toTimeString();
                        var splited = timeString.split(':');
+                       var sub = splited[2].substring(0,2);
                        extTime.push(splited[0], splited[1]);
-                       timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1]);
+                       timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
                        timeTemp[0] = Date.parse(timeTemp[0]);
-                       arrayOfArray.push(timeTemp[0], Math.random());
-                       dataArray.push(arrayOfArray);
-                    })
-                    $('#chartContainer').highcharts({
-                        chart: {
-                            type: 'spline',
-                            zoomType: 'x',
-                            panning: true,
-                            panKey: 'shift'
-                        },
-                        title: {
-                            text: 'Air Quality Sensor Readings'
-                        },
-                        subtitle: {
-                            text: 'Interactive Exploration'
-                        },
-                        xAxis: {
-                            type: 'datetime',
-                            dateTimeLabelFormats: {
-                            minute: '%H:%M'
-                        },
-                            title: {
-                                text: 'Time'
-                            },
-                        },
-                        yAxis: {
-                            title: {
-                                text: 'Readings'
-                            },
-                            min: 0
-                        },
-                        tooltip: {
-                            headerFormat: '<b>{series.name}</b><br>'
-                        },
-                        series: [{
-                            name: '%RH',
-                            data: dataArray
-                        }]
+                       timeArray.push(timeTemp[0]);
                     })
                 })
+            })
+        for (i = 0; i < valueArray.length; i++){
+            var tempArray = [];
+            tempArray.push(timeArray[i], valueArray[i]);
+            dataArray.push(tempArray);
+        }
+
+        $('#chartContainer').highcharts({
+           chart: {
+                    type: 'spline',
+                    zoomType: 'x',
+                    panning: true,
+                    panKey: 'shift'
+                },
+                title: {
+                    text: 'Air Quality Sensor Readings'
+                },
+                subtitle: {
+                    text: 'Interactive Exploration'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    dateTimeLabelFormats: {
+                    minute: '%H:%M'
+                },
+                    title: {
+                        text: 'Time'
+                    },
+                },
+                yAxis: {
+                    title: {
+                        text: 'Readings'
+                    },
+                    min: 0
+                },
+                tooltip: {
+                    headerFormat: '<b>{series.name}</b><br>'
+                },
+                series: [{
+                    name: '%RH',
+                    data: dataArray
+                }]
             })
         })
     })
@@ -185,18 +200,6 @@
     </script>
     -->
 
-    <script>
-
-    </script>
-
-    <!-- High charts -->
-    <script>
-        $(function () {
-;
-        });
-
-    </script>
-    
 <body>
     <form id="form1" runat="server">
     <div>Interactive Exploration of Sensor Data in Vehicle Traces</div>
