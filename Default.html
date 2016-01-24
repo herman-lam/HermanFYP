@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
@@ -25,7 +25,7 @@
 <script>
         var map;
         function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
+            map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.198415, lng: 113.546790 }, zoom: 13 });
             var coord_itineraire_arr = coord_itineraire.split("/");
             var flightPlanCoordinates = [];
 
@@ -62,7 +62,7 @@
 <script>
     var map;
     function initMap() {
-        map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.168505, lng: 113.560539 }, zoom: 13 });
+        map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.198415, lng: 113.546790 }, zoom: 14 });
     }
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDdSbxgDLATykOGf0yGqdM6PbBSms90pg4&callback=initMap"
@@ -94,23 +94,23 @@ async defer></script>
     }
 </script>
 
-<!-- Sensor: Read JSON, parse to usable format, and display -->
+<!-- Sensor[%RH]: Read JSON, parse to usable format, and display -->
 <script>
-    var plotter;
+    var RHplotter;
     var userRoute = 0;
-    $(plotter=function (){
+    $(RHplotter=function (){
         var valueArray = [];
         var timeArray = [];
         var dataArray = [];
         var slicedDataArray = [];
-        $.getJSON("/sensorValuePoll/index.php?day=27", function (result){
+        $.getJSON("/RHValuePoll/index.php?day=27", function (result){
             $.each(result, function (key, val){
                 $.each(val, function (key, val){
                     val = parseFloat(val);
                     valueArray.push(val);
                 })
             })
-            $.getJSON("/sensorTimePoll/index.php?day=27", function (result) {
+            $.getJSON("/RHTimePoll/index.php?day=27", function (result) {
                 $.each(result, function (key, val) {
                     $.each(val, function (key, val) {
                         var epochValues = [];
@@ -132,20 +132,23 @@ async defer></script>
                         })
                     })
                 })
+
             for (i = 0; i < valueArray.length; i++){
                 var tempArray = [];
                 tempArray.push(timeArray[i], valueArray[i]);
                 dataArray.push(tempArray);
             }
+
             //Seperate routes
-            var begin = 0;
+            window.begin = 0;
             window.routeCounter = [];
             for (k = 0; k < timeArray.length-1; k++) {
                 if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
                 routeCounter.push( [begin, k] );
                 begin = k+1
             }
-            if (begin != 0) {routeCounter.push( [begin, timeArray.length-1])}
+
+            if (begin != 0) {routeCounter.push( [begin, timeArray.length])}
 
             if (begin == 0){
                 slicedDataArray = dataArray;
@@ -153,8 +156,9 @@ async defer></script>
             selectedRoute = routeCounter[userRoute];
             slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
             }
+
             //Highcharts
-            $('#chartContainer').highcharts({
+            $('#RHChartContainer').highcharts({
                chart: {
                         type: 'spline',
                         zoomType: 'x',
@@ -200,6 +204,102 @@ async defer></script>
 
 </script>
 
+<!-- Sensor[Pressure mbar]: Read JSON, parse to usable format, and display -->
+<script>
+    var PressurePlotter;
+    var userRoute = 0;
+    $(PressurePlotter=function (){
+        setTimeout( function(){
+            $.getJSON("/PressurePoll/index.php?day=27", function(result){
+                var dataArray = [];
+                var timeArray = [];
+                var slicedDataArray = [];
+                $.each(result, function (key,val){
+                    var tempArray = [];
+                    var timeTemp = [];
+                    var time = parseFloat(val.epoch);
+
+                    //Parse time to 1970
+                    var extTime = [];
+                    timeSetter =  new Date(0);
+                    timeSetter.setUTCSeconds(time);
+                    var timeString = timeSetter.toTimeString();
+                    var splited = timeString.split(':');
+                    extTime.push(splited[0], splited[1]);
+                    var sub = splited[2].substring(0,2);
+                    timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                    timeTemp[0] = Date.parse(timeTemp[0]);
+
+
+                    var value = parseFloat(val.value);
+                    tempArray.push(timeTemp[0], value);
+                    dataArray.push(tempArray);
+                    timeArray.push(timeTemp[0]);
+                })
+
+                var routeCounterLocal = [];
+                var begin = 0;
+                for (k = 0; k < result.length-1; k++) {
+                    if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                    routeCounterLocal.push( [begin, k] );
+                    begin = k+1
+                }
+
+                if (begin != 0) {routeCounterLocal.push( [begin, timeArray.length])}
+
+                if (begin == 0){
+                    slicedDataArray = dataArray;
+                } else {
+                selectedRoute = routeCounterLocal[userRoute];
+                slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                }
+
+                //Highcharts
+                $('#PressureChartContainer').highcharts({
+                   chart: {
+                            type: 'spline',
+                            zoomType: 'x',
+                            panning: true,
+                            panKey: 'shift'
+                        },
+                        title: {
+                            text: 'Atmospheric Pressure'
+                        },
+                        subtitle: {
+                            text: 'Air Quality Sensor Readings'
+                        },
+                        xAxis: {
+                            type: 'datetime',
+                            dateTimeLabelFormats: {
+                            second: '%H:%M:%S'
+                        },
+                            title: {
+                                text: 'Time'
+                            },
+                        },
+                        yAxis: {
+                            title: {
+                                text: 'Readings'
+                            }
+                        },
+                        tooltip: {
+                            dateTimeLabelFormats: {
+                                second: '%H:%M:%S'
+                            },
+                            valuePrefix: 'Pressure: ',
+                            valueSuffix: 'mbar'
+                        },
+                        series: [{
+                            name: 'Pressure mbar',
+                            data: slicedDataArray
+                        }]
+                    })
+            })
+        }, 1000);
+    })
+</script>
+
+
 <!-- Parse JS Date Object 
 <script>
 var input = '[ ';
@@ -228,15 +328,19 @@ function epochParser(){
         <div>Interactive Exploration of Sensor Data in Vehicle Traces</div>
     </form>
 
+    <div style="clear: right">
     <input id="Button1" type="button" value="Plot" onclick="routePlot()" />
-    <input id="Button2" type="button" value="Redraw" onclick="plotter()" />
     <select name='route'>
         <option value="route">Route 1</option>
     </select>
+    <div>
 
-    <div style="align-items:center;">
-        <div id="map" style="height: 595px; width: 655px; display:inline-block;"></div>
-        <div id="chartContainer" style="height: 595px; width: 655px; display:inline-block;"></div>
+    <div style="display: inline-block; height: 600px; width: 600px">
+        <div id="map" style="height: 600px; width: 600px; display:inline-block;"></div>
+    </div>
+    <div style="display: inline-block; height: 600px; width: 600px">
+        <div id="RHChartContainer" style="height: 300px; width: 600px; display:inline-block;"></div>
+        <div id="PressureChartContainer" style="height: 300px; width: 600px; display:inline-block;"></div>
     </div>
 </body>
 
@@ -254,7 +358,8 @@ function epochParser(){
         var chosenRoute = $(this).val();
         parseInt(chosenRoute);
         userRoute = chosenRoute;
-        plotter();
+        RHplotter();
+        PressurePlotter();
     })
 </script>
 
