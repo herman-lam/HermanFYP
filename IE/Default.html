@@ -31,11 +31,17 @@
 <!-- dayPoller  -->
 <script>
     var userDay;
-    var dayRetrievePressure = "/PressurePoll/index.php?day=11";
-    var dayRetrieveRHT = "/RHTimePoll/index.php?day=11";
-    var dayRetrieveRHV = "/RHValuePoll/index.php?day=11";
+    var dayRetrieveGPS = "/gpsPoll/index.php?day=27";
+    var dayRetrievePressure = "/PressurePoll/index.php?day=27";
+    var dayRetrieveRHT = "/RHTimePoll/index.php?day=27";
+    var dayRetrieveRHV = "/RHValuePoll/index.php?day=27";
 
     function dayPoller(){
+        //Day polling: GPS coordinates
+        dayRetrieveGPS = "/gpsPoll/index.php?day=";
+        dayRetrieveGPS = dayRetrieveGPS.concat(userDay);
+
+
         //Day polling: %RH
         dayRetrieveRHT = "/RHTimePoll/index.php?day=";
         dayRetrieveRHT = dayRetrieveRHT.concat(userDay);
@@ -46,11 +52,11 @@
         dayRetrievePressure = "/PressurePoll/index.php?day=";
         dayRetrievePressure = dayRetrievePressure.concat(userDay);
         PressurePlotter();
-   
-        //routeMaker()
+
     }
 </script>
 
+<!-- OLD GPS Route plot
 <script>
         var map;
         function initMap() {
@@ -73,6 +79,7 @@
             flightPath.setMap(map);
     }
 </script>
+-->
 
 <!-- GPS: Read JSON, parse to usable format 
 <script>
@@ -88,20 +95,7 @@
 </script>
 -->
 
-<!--NEW read GPS json-->
-<script>
-    var coordinates = [];
-    var gpsEpoch = []
-    $.getJSON("/gpsPoll/index.php?day=27", function (result) {
-        $.each(result, function (key, val){
-            gpsEpoch.push(val.epoch);
-            coordinates.push(val.lat);
-            coordinates.push(val.lng);
-        })
-    })
-
-
-</script>
+<!-- GPS Route Plot -->
 
 <!-- Map initialization -->
 <script>
@@ -115,59 +109,57 @@ async defer></script>
 
 <!-- Loop for adding maps -->
 <script>
-    var a = coordinates;
-    var flightPath;
-    function GPSroutePlot(){
-        var userRoute = 1;
-        var fpa = [];
-        var b = [];
-        var i = 0;
-        while (i < a.length) {
-            b[0] = parseFloat(a[i]);
-            b[1] = parseFloat(a[i + 1]);
-            fpa.push(new google.maps.LatLng(b[0], b[1]));
-            i+=2;
-        }
+    var gpsPlotter;
 
-        //Route Seperation
-        var routeCounterLocal = [];
-        var begin = 0;
-        for (k = 0; k < gpsEpoch.length-1; k++) {
-            if ((gpsEpoch[k+1] - gpsEpoch[k]) < 50) continue;
-            routeCounterLocal.push( [begin, k] );
-            begin = k+1
-        }
-        console.log(begin);
-        if (begin != 0) {routeCounterLocal.push( [begin, gpsEpoch.length])}
+    var userRoute = 0;
+    gpsPlotter=function(){
+        //Read GPS json
+        $.getJSON(dayRetrieveGPS, function (result) {
+            initMap();
+            var flightPath;
+            var coordinates = [];
+            var gpsEpoch = [];
 
-        if (begin == 0){
+            $.each(result, function (key, val){
+                value = val.epoch;
+                value = parseFloat(value);
+                gpsEpoch.push(value);
+                coordinates.push(val.lat);
+                coordinates.push(val.lng);
+            })
+
+            var fpa = [];
+            var b = [];
+            var i = 0;
+            while (i < coordinates.length) {
+                b[0] = parseFloat(coordinates[i]);
+                b[1] = parseFloat(coordinates[i + 1]);
+                fpa.push(new google.maps.LatLng(b[0], b[1]));
+                i+=2;
+            }
+
+            //Route Seperation (TODO)
             slicedfpa = fpa;
-        } else {
-        selectedRoute = routeCounterLocal[userRoute];
-        slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
-        }
 
-        //Get 
-
-        flightPath = new google.maps.Polyline({
-            path: slicedfpa,
-            geodesic: true,
-            strokeColor: '#FF0000',
-            strokeOpacity: 1.0,
-            strokeWeight: 2
-        });
-        flightPath.setMap(map);
-        console.log(slicedfpa);
-        console.log(routeCounterLocal);
+            //Set flightPath
+            flightPath = new google.maps.Polyline({
+                path: slicedfpa,
+                geodesic: true,
+                strokeColor: '#FF0000',
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+            flightPath.setMap(map);
+        })
     }
 </script>
 
 <!-- Sensor[%RH]: Read JSON, parse to usable format, and display -->
 <script>
     var RHplotter;
-    var userRoute = 0;
+    var gpsEndEpoches = [];
     $(RHplotter=function (){
-        var gpsEndEpoches = [];
+ 
         var valueArray = [];
         var timeArray = [];
         var dataArray = [];
@@ -214,6 +206,7 @@ async defer></script>
             //Seperate routes
             window.begin = 0;
             var routeCounter = [];
+            gpsEndEpoches = [];
             for (k = 0; k < timeArray.length-1; k++) {
                 if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                 routeCounter.push( [begin, k] );
@@ -291,7 +284,6 @@ async defer></script>
 <!-- Sensor[Pressure mbar]: Read JSON, parse to usable format, and display -->
 <script>
     var PressurePlotter;
-    var userRoute = 0;
     $(PressurePlotter=function (){
         setTimeout( function(){
             $.getJSON(dayRetrievePressure, function(result){
@@ -413,7 +405,7 @@ function epochParser(){
     </form>
 
     <div style="clear: right">
-    <input id="Button1" type="button" value="Plot" onclick="GPSroutePlot()" />
+    <input id="Button1" type="button" value="Plot" onclick="gpsPlotter()" />
 
     <select name='day'>
         <option value="day">Day 1</option>
@@ -458,7 +450,7 @@ function epochParser(){
 
 <!--Dyanmic Generation-->
 <script>
-    //Route Maker
+    //Route Maker OLD
     routeMaker=function(){
         $('select[name=route]').empty();
         for (var i=0; i<routeCounterGlobal.length; i++) {
@@ -467,12 +459,14 @@ function epochParser(){
         }
     }
 
+    //Visualization Generation
     $('select[name=route]').change( function(){
         var chosenRoute = $(this).val();
         parseInt(chosenRoute);
         userRoute = chosenRoute;
         RHplotter();
         PressurePlotter();
+        gpsPlotter();
     })
 
     //Day Maker
