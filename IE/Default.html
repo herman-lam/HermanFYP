@@ -30,26 +30,24 @@
 
 <!-- dayPoller  -->
 <script>
-    var userDay = "1";
+    var userDay;
     var dayRetrievePressure = "/PressurePoll/index.php?day=11";
     var dayRetrieveRHT = "/RHTimePoll/index.php?day=11";
     var dayRetrieveRHV = "/RHValuePoll/index.php?day=11";
 
     function dayPoller(){
-        //Day polling: Pressure
-        dayRetrievePressure = "/PressurePoll/index.php?day=";
-        dayRetrievePressure = dayRetrievePressure.concat(userDay);
-        PressurePlotter();
-
         //Day polling: %RH
         dayRetrieveRHT = "/RHTimePoll/index.php?day=";
         dayRetrieveRHT = dayRetrieveRHT.concat(userDay);
         dayRetrieveRHV = "/RHValuePoll/index.php?day=";
         dayRetrieveRHV = dayRetrieveRHV.concat(userDay);
         RHplotter();
-
-        //Reload Route
-        routeMaker();
+        //Day polling: Pressure
+        dayRetrievePressure = "/PressurePoll/index.php?day=";
+        dayRetrievePressure = dayRetrievePressure.concat(userDay);
+        PressurePlotter();
+   
+        //routeMaker()
     }
 </script>
 
@@ -76,7 +74,7 @@
     }
 </script>
 
-<!-- GPS: Read JSON, parse to usable format -->
+<!-- GPS: Read JSON, parse to usable format 
 <script>
     var coordinates = [];
 
@@ -87,6 +85,22 @@
             })
         })
     })
+</script>
+-->
+
+<!--NEW read GPS json-->
+<script>
+    var coordinates = [];
+    var gpsEpoch = []
+    $.getJSON("/gpsPoll/index.php?day=27", function (result) {
+        $.each(result, function (key, val){
+            gpsEpoch.push(val.epoch);
+            coordinates.push(val.lat);
+            coordinates.push(val.lng);
+        })
+    })
+
+
 </script>
 
 <!-- Map initialization -->
@@ -103,7 +117,8 @@ async defer></script>
 <script>
     var a = coordinates;
     var flightPath;
-    function routePlot(){
+    function GPSroutePlot(){
+        var userRoute = 1;
         var fpa = [];
         var b = [];
         var i = 0;
@@ -114,14 +129,36 @@ async defer></script>
             i+=2;
         }
 
+        //Route Seperation
+        var routeCounterLocal = [];
+        var begin = 0;
+        for (k = 0; k < gpsEpoch.length-1; k++) {
+            if ((gpsEpoch[k+1] - gpsEpoch[k]) < 50) continue;
+            routeCounterLocal.push( [begin, k] );
+            begin = k+1
+        }
+        console.log(begin);
+        if (begin != 0) {routeCounterLocal.push( [begin, gpsEpoch.length])}
+
+        if (begin == 0){
+            slicedfpa = fpa;
+        } else {
+        selectedRoute = routeCounterLocal[userRoute];
+        slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
+        }
+
+        //Get 
+
         flightPath = new google.maps.Polyline({
-            path: fpa,
+            path: slicedfpa,
             geodesic: true,
             strokeColor: '#FF0000',
             strokeOpacity: 1.0,
             strokeWeight: 2
         });
         flightPath.setMap(map);
+        console.log(slicedfpa);
+        console.log(routeCounterLocal);
     }
 </script>
 
@@ -130,6 +167,7 @@ async defer></script>
     var RHplotter;
     var userRoute = 0;
     $(RHplotter=function (){
+        var gpsEndEpoches = [];
         var valueArray = [];
         var timeArray = [];
         var dataArray = [];
@@ -142,6 +180,7 @@ async defer></script>
                 })
             })
             $.getJSON(dayRetrieveRHT, function (result) {
+                var timeArrayForGPS = [];
                 $.each(result, function (key, val) {
                     $.each(val, function (key, val) {
                         var epochValues = [];
@@ -151,6 +190,7 @@ async defer></script>
                            var arrayOfArray = [];
                            var extTime = [];
                            epoch = parseFloat(epoch);
+                           timeArrayForGPS.push(epoch);
                            val = new Date(0);
                            val.setUTCSeconds(epoch);
                            var timeString = val.toTimeString();
@@ -163,6 +203,7 @@ async defer></script>
                         })
                     })
                 })
+            
 
             for (i = 0; i < valueArray.length; i++){
                 var tempArray = [];
@@ -172,20 +213,32 @@ async defer></script>
 
             //Seperate routes
             window.begin = 0;
-            window.routeCounter = [];
+            var routeCounter = [];
             for (k = 0; k < timeArray.length-1; k++) {
-                if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                 routeCounter.push( [begin, k] );
+                gpsEndEpoches.push(timeArrayForGPS[k]);
                 begin = k+1
             }
 
-            if (begin != 0) {routeCounter.push( [begin, timeArray.length])}
+            if (begin != 0) {
+                routeCounter.push( [begin, timeArray.length]);
+                gpsEndEpoches.push(timeArrayForGPS.pop());
+            }
 
             if (begin == 0){
                 slicedDataArray = dataArray;
             } else {
             selectedRoute = routeCounter[userRoute];
             slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+            }
+
+            //Route Maker
+            $('select[name=route]').empty();
+            $('select[name=route]').append($('<option>').text('Please Choose Route'));
+            for (var i=0; i<routeCounter.length; i++) {
+               var opt = $('<option>').attr('value', i).text('Route '+(i+1));
+               $('select[name=route]').append(opt);
             }
 
             //Highcharts
@@ -244,7 +297,7 @@ async defer></script>
             $.getJSON(dayRetrievePressure, function(result){
                 var dataArray = [];
                 var timeArray = [];
-                var slicedDataArray = [];
+                var slicedDataArray = []; 
                 $.each(result, function (key,val){
                     var tempArray = [];
                     var timeTemp = [];
@@ -360,7 +413,7 @@ function epochParser(){
     </form>
 
     <div style="clear: right">
-    <input id="Button1" type="button" value="Plot" onclick="routePlot()" />
+    <input id="Button1" type="button" value="Plot" onclick="GPSroutePlot()" />
 
     <select name='day'>
         <option value="day">Day 1</option>
@@ -408,7 +461,7 @@ function epochParser(){
     //Route Maker
     routeMaker=function(){
         $('select[name=route]').empty();
-        for (var i=0; i<routeCounter.length; i++) {
+        for (var i=0; i<routeCounterGlobal.length; i++) {
            var opt = $('<option>').attr('value', i).text('Route '+(i+1));
            $('select[name=route]').append(opt);
         }

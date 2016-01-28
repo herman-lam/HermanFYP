@@ -10,7 +10,7 @@
  	// then connect to your DB through DB_class.php you may check how to use by openning the DB_class.php
  	$db -> connect_db($_DB['host'], $_DB['username'], $_DB['password'], $_DB['dbname']);
  	// write you query here:
- 	$query = "SELECT epoch,lat,lng FROM gps WHERE day='{$day}'";
+ 	$query = "SELECT epoch,value FROM sensor_data WHERE day='{$day}' AND entry='Pressure mbar'";
  	// execute query
  	$db -> query($query);
 
@@ -20,8 +20,7 @@
  	while ($result = $db -> fetch_array()) {
  		$temArray = [];
  		$temArray['epoch'] = $result['epoch'];
- 		$temArray['lat'] = $result['lat'];
- 		$temArray['lng'] = $result['lng'];
+ 		$temArray['value'] = $result['value'];
  		array_push($resultArray, $temArray);
  	}
  	// make to json format:
