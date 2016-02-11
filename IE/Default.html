@@ -35,12 +35,13 @@
     var dayRetrievePressure = "/PressurePoll/index.php?day=27";
     var dayRetrieveRHT = "/RHTimePoll/index.php?day=27";
     var dayRetrieveRHV = "/RHValuePoll/index.php?day=27";
+    var dayRetrieveSensor = "/sensorPoll/index.php?day=27";
 
     function dayPoller(){
         //Day polling: GPS coordinates
         dayRetrieveGPS = "/gpsPoll/index.php?day=";
         dayRetrieveGPS = dayRetrieveGPS.concat(userDay);
-
+        gpsPlotter();
 
         //Day polling: %RH
         dayRetrieveRHT = "/RHTimePoll/index.php?day=";
@@ -48,10 +49,16 @@
         dayRetrieveRHV = "/RHValuePoll/index.php?day=";
         dayRetrieveRHV = dayRetrieveRHV.concat(userDay);
         RHplotter();
+
         //Day polling: Pressure
         dayRetrievePressure = "/PressurePoll/index.php?day=";
         dayRetrievePressure = dayRetrievePressure.concat(userDay);
         PressurePlotter();
+
+        //Day polling: Sensors
+        dayRetrieveSensor = "/sensorPoll/index.php?day=";
+        dayRetrieveSensor = dayRetrieveSensor.concat(userDay);
+        sensorPlotter();
 
     }
 </script>
@@ -172,7 +179,13 @@ async defer></script>
                 slicedfpa = fpa;
             } else {
                 selectedRoute = routeCounterGPS[userRoute];
-                slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
+                if (typeof(selectedRoute) == 'undefined') {
+                    selectedRoute = [0, 1];
+                    slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
+                } else {
+                    slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
+                }
+
             }
 
             //Set flightPath
@@ -195,7 +208,6 @@ async defer></script>
     var RHplotter;
     var gpsEndEpoches = [];
     $(RHplotter=function (){
- 
         var valueArray = [];
         var timeArray = [];
         var dataArray = [];
@@ -258,11 +270,17 @@ async defer></script>
             if (begin == 0){
                 slicedDataArray = dataArray;
             } else {
-            selectedRoute = routeCounter[userRoute];
-            slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                selectedRoute = routeCounter[userRoute];
+                if (typeof(selectedRoute) == 'undefined') {
+                    selectedRoute = [0, 1];
+                    slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                } else {
+                    slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                }
             }
 
             //Route Maker
+            //Route generation
             $('select[name=route]').empty();
             $('select[name=route]').append($('<option>').text('Please Choose Route'));
             for (var i=0; i<routeCounter.length; i++) {
@@ -362,9 +380,14 @@ async defer></script>
                 if (begin == 0){
                     slicedDataArray = dataArray;
                 } else {
-                selectedRoute = routeCounterLocal[userRoute];
-                slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
-                }
+                    selectedRoute = routeCounter[userRoute];
+                    if (typeof(selectedRoute) == 'undefined') {
+                        selectedRoute = [0, 1];
+                        slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                        } else {
+                            slicedDataArray = dataArray.slice(selectedRoute[0], selectedRoute[1]);
+                        }
+                    }
 
                 //Highcharts
                 $('#PressureChartContainer').highcharts({
@@ -411,6 +434,244 @@ async defer></script>
     })
 </script>
 
+<!-- Sensor[Pressure mbar]: Read JSON, parse to usable format, and display -->
+<script>
+    var sensorPlotter;
+    $(sensorPlotter=function (){
+        setTimeout( function(){
+            $.getJSON(dayRetrieveSensor, function(result){
+                var slicedEthanolArray = [];
+                var slicedH2SArray = [];
+                var slicedTolueneArray = [];
+
+                var pEthanolArray = [];
+                var pH2SArray = [];
+                var pTolueneArray = [];
+
+                var sensorArray = [];
+                var ethanolArray = [];
+                var h2sArray = [];
+                var tolueneArray = [];
+                $.each(result, function (key,val){
+                    sensorArray.push(val);
+                });
+
+                for (i=0; i< sensorArray.length; i++){
+                    if (sensorArray[i].entry == 'ETHANOL ppm') {
+                        tempArray = [];
+                        tempArray.push(parseFloat(sensorArray[i].epoch));
+                        tempArray.push(parseFloat(sensorArray[i].value));
+                        ethanolArray.push(tempArray);
+                    } else if (sensorArray[i].entry == 'H2S ppm'){
+                        tempArray = [];
+                        tempArray.push(parseFloat(sensorArray[i].epoch));
+                        tempArray.push(parseFloat(sensorArray[i].value));
+                        h2sArray.push(tempArray);
+                    } else {
+                        tempArray = [];
+                        tempArray.push(parseFloat(sensorArray[i].epoch));
+                        tempArray.push(parseFloat(sensorArray[i].value));
+                        tolueneArray.push(tempArray);
+                    }
+                }
+
+                //Ethanol ppm to format
+                function ethanolPlotter(){
+                    var timeArray = [];
+                    for (i=0; i< ethanolArray.length; i++){
+                        var timeTemp = [];
+                        var tempArray = [];
+                        var obj = ethanolArray[i];
+                        var time = obj[0];
+
+                        //Parse time to 1970
+                        var extTime = [];
+                        timeSetter =  new Date(0);
+                        timeSetter.setUTCSeconds(time);
+                        var timeString = timeSetter.toTimeString();
+                        var splited = timeString.split(':');
+                        extTime.push(splited[0], splited[1]);
+                        var sub = splited[2].substring(0,2);
+                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        timeTemp[0] = Date.parse(timeTemp[0]);
+                        var value = obj[1];
+                        tempArray.push(timeTemp[0], value);
+                        timeArray.push(timeTemp[0]);
+                        pEthanolArray.push(tempArray);
+                    }
+
+                    var routeCounterLocal = [];
+                    var begin = 0;
+                    for (k = 0; k < ethanolArray.length-1; k++) {
+                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        routeCounterLocal.push( [begin, k] );
+                        begin = k+1
+                    }
+
+                    if (begin != 0) {routeCounterLocal.push( [begin, timeArray.length])}
+
+                    if (begin == 0){
+                        slicedEthanolArray = pEthanolArray;
+                    } else {
+                        selectedRoute = routeCounter[userRoute];
+                        if (typeof(selectedRoute) == 'undefined') {
+                            selectedRoute = [0, 1];
+                            slicedEthanolArray = pEthanolArray.slice(selectedRoute[0], selectedRoute[1]);
+                            } else {
+                                slicedEthanolArray = pEthanolArray.slice(selectedRoute[0], selectedRoute[1]);
+                            }
+                    }
+                }
+                ethanolPlotter();
+
+                //H2S ppm to format
+                function H2SPlotter(){
+                    var timeArray = [];
+                    for (i=0; i< h2sArray.length; i++){
+                        var tempArray = [];
+                        var timeTemp = [];
+                        var obj = h2sArray[i];
+                        var time = obj[0];
+
+                        //Parse time to 1970
+                        var extTime = [];
+                        timeSetter =  new Date(0);
+                        timeSetter.setUTCSeconds(time);
+                        var timeString = timeSetter.toTimeString();
+                        var splited = timeString.split(':');
+                        extTime.push(splited[0], splited[1]);
+                        var sub = splited[2].substring(0,2);
+                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        timeTemp[0] = Date.parse(timeTemp[0]);
+                        var value = obj[1];
+                        tempArray.push(timeTemp[0], value);
+                        timeArray.push(timeTemp[0]);
+                        pH2SArray.push(tempArray);
+                    }
+
+                    var routeCounterLocal = [];
+                    var begin = 0;
+                    for (k = 0; k < h2sArray.length-1; k++) {
+                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        routeCounterLocal.push( [begin, k] );
+                        begin = k+1
+                    }
+
+                    if (begin != 0) {routeCounterLocal.push( [begin, timeArray.length])}
+
+                    if (begin == 0){
+                        slicedH2SArray = pH2SArray;
+                    } else {
+                        selectedRoute = routeCounter[userRoute];
+                        if (typeof(selectedRoute) == 'undefined') {
+                            selectedRoute = [0, 1];
+                            slicedH2SArray = pH2SArray.slice(selectedRoute[0], selectedRoute[1]);
+                            } else {
+                                slicedH2SArray = pH2SArray.slice(selectedRoute[0], selectedRoute[1]);
+                            }
+                    }
+                }
+                H2SPlotter();
+
+                //Toluene ppm to format
+                function toluenePlotter(){
+                    var timeArray = [];
+                    for (i=0; i< tolueneArray.length; i++){
+                        var tempArray = [];
+                        var timeTemp = [];
+                        var obj = tolueneArray[i];
+                        var time = obj[0];
+
+                        //Parse time to 1970
+                        var extTime = [];
+                        timeSetter =  new Date(0);
+                        timeSetter.setUTCSeconds(time);
+                        var timeString = timeSetter.toTimeString();
+                        var splited = timeString.split(':');
+                        extTime.push(splited[0], splited[1]);
+                        var sub = splited[2].substring(0,2);
+                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        timeTemp[0] = Date.parse(timeTemp[0]);
+                        var value = obj[1];
+                        tempArray.push(timeTemp[0], value);
+                        timeArray.push(timeTemp[0]);
+                        pTolueneArray.push(tempArray);
+                    }
+
+                    var routeCounterLocal = [];
+                    var begin = 0;
+                    for (k = 0; k < tolueneArray.length-1; k++) {
+                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        routeCounterLocal.push( [begin, k] );
+                        begin = k+1
+                    }
+
+                    if (begin != 0) {routeCounterLocal.push( [begin, timeArray.length])}
+
+                    if (begin == 0){
+                        slicedTolueneArray = pTolueneArray;
+                    } else {
+                        selectedRoute = routeCounter[userRoute];
+                        if (typeof(selectedRoute) == 'undefined') {
+                            selectedRoute = [0, 1];
+                            slicedTolueneArray = pTolueneArray.slice(selectedRoute[0], selectedRoute[1]);
+                            } else {
+                                slicedTolueneArray = pTolueneArray.slice(selectedRoute[0], selectedRoute[1]);
+                            }
+                    }
+                }
+                toluenePlotter();
+
+                //Highcharts
+                $('#SensorChartContainer').highcharts({
+                   chart: {
+                            type: 'spline',
+                            zoomType: 'x',
+                            panning: true,
+                            panKey: 'shift'
+                        },
+                        title: {
+                            text: 'Sensors'
+                        },
+                        subtitle: {
+                            text: 'Air Quality Sensor Readings'
+                        },
+                        xAxis: {
+                            type: 'datetime',
+                            dateTimeLabelFormats: {
+                            second: '%H:%M:%S'
+                        },
+                            title: {
+                                text: 'Time'
+                            },
+                        },
+                        yAxis: {
+                            title: {
+                                text: 'Readings'
+                            }
+                        },
+                        tooltip: {
+                            dateTimeLabelFormats: {
+                                second: '%H:%M:%S'
+                            }
+                        },
+                        series: [{
+                            name: 'Ethanol ppm',
+                            data: slicedEthanolArray
+                        }, {
+                            name: 'H2S ppm',
+                            data: slicedH2SArray
+                        }, {
+                            name: 'Toluene ppm',
+                            data: slicedTolueneArray
+                        }
+                        ]
+                    })
+
+            });
+        }, 1000);
+    })
+</script>
 
 <!-- Parse JS Date Object 
 <script>
@@ -452,12 +713,13 @@ function epochParser(){
     </select>
     <div>
 
-    <div style="display: inline-block; height: 600px; width: 600px">
-        <div id="map" style="height: 600px; width: 600px; display:inline-block;"></div>
+    <div style="display: inline-block; height: 900px; width: 600px">
+        <div id="map" style="height: 900px; width: 600px; display:inline-block;"></div>
     </div>
-    <div style="display: inline-block; height: 600px; width: 600px">
+    <div style="display: inline-block; height: 900px; width: 900px">
         <div id="RHChartContainer" style="height: 300px; width: 600px; display:inline-block;"></div>
         <div id="PressureChartContainer" style="height: 300px; width: 600px; display:inline-block;"></div>
+        <div id="SensorChartContainer" style="height: 300px; width: 600px; display:inline-block;"></div>
     </div>
 </body>
 
@@ -486,7 +748,7 @@ function epochParser(){
 
 <!--Dyanmic Generation-->
 <script>
-    //Route Maker OLD
+    //Route Maker For Day
     routeMaker=function(){
         $('select[name=route]').empty();
         for (var i=0; i<routeCounterGlobal.length; i++) {
@@ -503,6 +765,7 @@ function epochParser(){
         RHplotter();
         PressurePlotter();
         gpsPlotter();
+        sensorPlotter();
     })
 
     //Day Maker
