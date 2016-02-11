@@ -110,6 +110,7 @@ async defer></script>
 <!-- Loop for adding maps -->
 <script>
     var gpsPlotter;
+    var gpsEpoch = [];
 
     var userRoute = 0;
     gpsPlotter=function(){
@@ -118,7 +119,7 @@ async defer></script>
             initMap();
             var flightPath;
             var coordinates = [];
-            var gpsEpoch = [];
+
 
             $.each(result, function (key, val){
                 value = val.epoch;
@@ -139,7 +140,40 @@ async defer></script>
             }
 
             //Route Seperation (TODO)
-            slicedfpa = fpa;
+            //Epoch time error prevention
+            if (gpsEndEpoches[0] < gpsEpoch[0]){
+                routeCounter.shift();
+                gpsEndEpoches.shift();
+                $('select[name=route]').empty();
+                $('select[name=route]').append($('<option>').text('Please Choose Route'));
+                for (var i=0; i<routeCounter.length; i++) {
+                   var opt = $('<option>').attr('value', i+1).text('Route '+(i+1));
+                   $('select[name=route]').append(opt);
+                }
+            }
+
+            var routeCounterGPS = [];
+            var beginGPS = 0;
+            //Convert route end epoch time into array location
+            for (j=0; j<gpsEpoch.length; j++){
+                for (k=0; k<gpsEndEpoches.length; k++){
+                    if(gpsEndEpoches[k] == gpsEpoch[j]){
+                        routeCounterGPS.push([beginGPS, j]);
+                        beginGPS = j+1;
+                    }
+                }
+            }
+
+            if (beginGPS != 0) {
+                routeCounterGPS.push([beginGPS, gpsEpoch.length])
+            }
+
+            if (beginGPS == 0) {
+                slicedfpa = fpa;
+            } else {
+                selectedRoute = routeCounterGPS[userRoute];
+                slicedfpa = fpa.slice(selectedRoute[0], selectedRoute[1]);
+            }
 
             //Set flightPath
             flightPath = new google.maps.Polyline({
@@ -150,6 +184,8 @@ async defer></script>
                 strokeWeight: 2
             });
             flightPath.setMap(map);
+            routeCounterGPS = [];
+            gpsEpoch = [];
         })
     }
 </script>
@@ -205,7 +241,7 @@ async defer></script>
 
             //Seperate routes
             window.begin = 0;
-            var routeCounter = [];
+            window.routeCounter = [];
             gpsEndEpoches = [];
             for (k = 0; k < timeArray.length-1; k++) {
                 if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
