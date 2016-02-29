@@ -41,7 +41,7 @@
         //Day polling: GPS coordinates
         dayRetrieveGPS = "/gpsPoll/index.php?day=";
         dayRetrieveGPS = dayRetrieveGPS.concat(userDay);
-        gpsPlotter();
+        //gpsPlotter();
 
         //Day polling: %RH
         dayRetrieveRHT = "/RHTimePoll/index.php?day=";
@@ -111,8 +111,12 @@
         map = new google.maps.Map(document.getElementById('map'), { center: { lat: 22.198415, lng: 113.546790 }, zoom: 14 });
     }
 </script>
+
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDdSbxgDLATykOGf0yGqdM6PbBSms90pg4&callback=initMap"
 async defer></script>
+
+
+
 
 <!-- Loop for adding maps -->
 <script>
@@ -122,11 +126,10 @@ async defer></script>
     var userRoute = 0;
     gpsPlotter=function(){
         //Read GPS json
-        $.getJSON(dayRetrieveGPS, function (result) {
-            initMap();
-            var flightPath;
-            var coordinates = [];
+        var flightPath;
 
+        $.getJSON(dayRetrieveGPS, function (result) {
+            var coordinates = [];
 
             $.each(result, function (key, val){
                 value = val.epoch;
@@ -137,27 +140,34 @@ async defer></script>
             })
 
             var fpa = [];
+            var fpt = [];
+            var markerCoor = [];
             var b = [];
             var i = 0;
             while (i < coordinates.length) {
                 b[0] = parseFloat(coordinates[i]);
                 b[1] = parseFloat(coordinates[i + 1]);
+                b[2] = gpsEpoch[i];
+
                 fpa.push(new google.maps.LatLng(b[0], b[1]));
+                fpt.push(b[2]);
+                markerCoor.push(b[0], b[1]);
+
                 i+=2;
             }
 
-            //Route Seperation (TODO)
+            //Route Seperation
             //Epoch time error prevention
-            if (gpsEndEpoches[0] < gpsEpoch[0]){
-                routeCounter.shift();
-                gpsEndEpoches.shift();
-                $('select[name=route]').empty();
-                $('select[name=route]').append($('<option>').text('Please Choose Route'));
-                for (var i=0; i<routeCounter.length; i++) {
-                   var opt = $('<option>').attr('value', i+1).text('Route '+(i+1));
-                   $('select[name=route]').append(opt);
-                }
-            }
+            //if (gpsEndEpoches[0] < gpsEpoch[0]){
+            //    routeCounter.shift();
+            //    gpsEndEpoches.shift();
+            //    $('select[name=route]').empty();
+            //    $('select[name=route]').append($('<option>').text('Please Choose Route'));
+            //    for (var i=0; i<routeCounter.length; i++) {
+            //       var opt = $('<option>').attr('value', i+1).text('Route '+(i+1));
+            //       $('select[name=route]').append(opt);
+            //    }
+            //}
 
             var routeCounterGPS = [];
             var beginGPS = 0;
@@ -196,9 +206,43 @@ async defer></script>
                 strokeOpacity: 1.0,
                 strokeWeight: 2
             });
+
             flightPath.setMap(map);
             routeCounterGPS = [];
             gpsEpoch = [];
+
+            //Set Marker
+            var slicedfpt = fpt.slice(selectedRoute[0], selectedRoute[1]);
+            var j = 0;
+            var k = 0;
+
+            var image = {
+                url: '/IE/marker.png',
+                size: new google.maps.Size(50, 50),
+                origin: new google.maps.Point(0, 0),
+                anchor: new google.maps.Point(0,40),
+            };
+
+            while (j < slicedfpt.length) {
+                //Make marker
+                var markerLatLng = {lat: markerCoor[k], lng: markerCoor[k+1]};
+
+
+                var utcSeconds = slicedfpt[j];
+                var d = new Date(0);
+                d.setUTCSeconds(utcSeconds);
+                timeS = d.toLocaleTimeString(utcSeconds);
+                timeS = timeS.substring(0,8);
+
+                var marker = new google.maps.Marker({
+                    position: markerLatLng,
+                    map: map,
+                    icon: image,
+                    title: timeS
+                });
+                j+=1;
+                k+=2;
+            }
         })
     }
 </script>
@@ -212,6 +256,7 @@ async defer></script>
         var timeArray = [];
         var dataArray = [];
         var slicedDataArray = [];
+        //var timeData = [];
         $.getJSON(dayRetrieveRHV, function (result){
             $.each(result, function (key, val){
                 $.each(val, function (key, val){
@@ -229,6 +274,7 @@ async defer></script>
                            var timeTemp = [];
                            var arrayOfArray = [];
                            var extTime = [];
+
                            epoch = parseFloat(epoch);
                            timeArrayForGPS.push(epoch);
                            val = new Date(0);
@@ -237,9 +283,14 @@ async defer></script>
                            var splited = timeString.split(':');
                            var sub = splited[2].substring(0,2);
                            extTime.push(splited[0], splited[1]);
-                           timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
-                           timeTemp[0] = Date.parse(timeTemp[0]);
-                           timeArray.push(timeTemp[0]);
+                           //timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                           //timeTemp[0] = Date.parse(timeTemp[0]);
+                           //timeTemp[0] = timeTemp[0].toString();
+                           //timeTemp[0] = timeTemp[0].slice(0, -3);
+                           //timeTemp[0] = parseInt(timeTemp[0]);
+                           //timeArray.push(timeTemp[0]);
+                           var utcTime = Date.UTC(1970, 0, 1, extTime[0], extTime[1], sub);
+                           timeArray.push(utcTime);
                         })
                     })
                 })
@@ -287,6 +338,7 @@ async defer></script>
                var opt = $('<option>').attr('value', i).text('Route '+(i+1));
                $('select[name=route]').append(opt);
             }
+
 
             //Highcharts
             $('#RHChartContainer').highcharts({
@@ -357,20 +409,17 @@ async defer></script>
                     var splited = timeString.split(':');
                     extTime.push(splited[0], splited[1]);
                     var sub = splited[2].substring(0,2);
-                    timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
-                    timeTemp[0] = Date.parse(timeTemp[0]);
-
-
+                    var utcTime = Date.UTC(1970, 0, 1, extTime[0], extTime[1], sub);
+                    timeArray.push(utcTime);
                     var value = parseFloat(val.value);
-                    tempArray.push(timeTemp[0], value);
+                    tempArray.push(utcTime, value);
                     dataArray.push(tempArray);
-                    timeArray.push(timeTemp[0]);
                 })
-
+                console.log(dataArray);
                 var routeCounterLocal = [];
                 var begin = 0;
                 for (k = 0; k < result.length-1; k++) {
-                    if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                    if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                     routeCounterLocal.push( [begin, k] );
                     begin = k+1
                 }
@@ -492,18 +541,23 @@ async defer></script>
                         var splited = timeString.split(':');
                         extTime.push(splited[0], splited[1]);
                         var sub = splited[2].substring(0,2);
-                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
-                        timeTemp[0] = Date.parse(timeTemp[0]);
                         var value = obj[1];
-                        tempArray.push(timeTemp[0], value);
-                        timeArray.push(timeTemp[0]);
+                        var utcTime = Date.UTC(1970, 0, 1, extTime[0], extTime[1], sub);
+                        timeArray.push(utcTime);
+                        tempArray.push(utcTime, value);
                         pEthanolArray.push(tempArray);
+
+                        //timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        //timeTemp[0] = Date.parse(timeTemp[0]);
+                        //tempArray.push(timeTemp[0], value);
+                        //timeArray.push(timeTemp[0]);
+                        //pEthanolArray.push(tempArray);
                     }
 
                     var routeCounterLocal = [];
                     var begin = 0;
                     for (k = 0; k < ethanolArray.length-1; k++) {
-                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                         routeCounterLocal.push( [begin, k] );
                         begin = k+1
                     }
@@ -541,18 +595,24 @@ async defer></script>
                         var splited = timeString.split(':');
                         extTime.push(splited[0], splited[1]);
                         var sub = splited[2].substring(0,2);
-                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
-                        timeTemp[0] = Date.parse(timeTemp[0]);
                         var value = obj[1];
-                        tempArray.push(timeTemp[0], value);
-                        timeArray.push(timeTemp[0]);
+                        var utcTime = Date.UTC(1970, 0, 1, extTime[0], extTime[1], sub);
+                        timeArray.push(utcTime);
+                        tempArray.push(utcTime, value);
                         pH2SArray.push(tempArray);
+
+                        //timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        //timeTemp[0] = Date.parse(timeTemp[0]);
+                        //var value = obj[1];
+                        //tempArray.push(timeTemp[0], value);
+                        //timeArray.push(timeTemp[0]);
+                        //pH2SArray.push(tempArray);
                     }
 
                     var routeCounterLocal = [];
                     var begin = 0;
                     for (k = 0; k < h2sArray.length-1; k++) {
-                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                         routeCounterLocal.push( [begin, k] );
                         begin = k+1
                     }
@@ -590,18 +650,24 @@ async defer></script>
                         var splited = timeString.split(':');
                         extTime.push(splited[0], splited[1]);
                         var sub = splited[2].substring(0,2);
-                        timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
-                        timeTemp[0] = Date.parse(timeTemp[0]);
                         var value = obj[1];
-                        tempArray.push(timeTemp[0], value);
-                        timeArray.push(timeTemp[0]);
+                        var utcTime = Date.UTC(1970, 0, 1, extTime[0], extTime[1], sub);
+                        timeArray.push(utcTime);
+                        tempArray.push(utcTime, value);
                         pTolueneArray.push(tempArray);
+
+                        //timeTemp.push("Thu, 01 Jan 1970 " + extTime[0] + ":" + extTime[1] + ":" + sub);
+                        //timeTemp[0] = Date.parse(timeTemp[0]);
+                        //var value = obj[1];
+                        //tempArray.push(timeTemp[0], value);
+                        //timeArray.push(timeTemp[0]);
+                        //pTolueneArray.push(tempArray);
                     }
 
                     var routeCounterLocal = [];
                     var begin = 0;
                     for (k = 0; k < tolueneArray.length-1; k++) {
-                        if ((timeArray[k+1] - timeArray[k]) < 500000) continue;
+                        if ((timeArray[k+1] - timeArray[k]) < 50000) continue;
                         routeCounterLocal.push( [begin, k] );
                         begin = k+1
                     }
@@ -762,6 +828,7 @@ function epochParser(){
         var chosenRoute = $(this).val();
         parseInt(chosenRoute);
         userRoute = chosenRoute;
+        initMap();
         RHplotter();
         PressurePlotter();
         gpsPlotter();
