@@ -120,6 +120,7 @@ async defer></script>
 
 <!-- Loop for adding maps -->
 <script>
+    var showDay;
     var gpsPlotter;
     var gpsEpoch = [];
 
@@ -129,8 +130,8 @@ async defer></script>
         var flightPath;
 
         $.getJSON(dayRetrieveGPS, function (result) {
-            var coordinates = [];
 
+            var coordinates = [];
             $.each(result, function (key, val){
                 value = val.epoch;
                 value = parseFloat(value);
@@ -138,6 +139,15 @@ async defer></script>
                 coordinates.push(val.lat);
                 coordinates.push(val.lng);
             })
+
+            //Give date
+            var thisDay = gpsEpoch[0];
+            var d = new Date(0);
+            d.setUTCSeconds(thisDay);
+            thisDay = d.toDateString();
+
+            $('p[name=date]').empty();
+            $('p[name=date]').append("Date: " + thisDay);
 
             var fpa = [];
             var fpt = [];
@@ -243,6 +253,14 @@ async defer></script>
                 j+=1;
                 k+=2;
             }
+
+            var latlng = {lat: 22.185188, lng: 113.548732};
+            
+            var marker2 = new google.maps.Marker({
+                position: latlng,
+                map:map,
+                title: "10:37:47"
+            })
         })
     }
 </script>
@@ -415,7 +433,7 @@ async defer></script>
                     tempArray.push(utcTime, value);
                     dataArray.push(tempArray);
                 })
-                console.log(dataArray);
+                
                 var routeCounterLocal = [];
                 var begin = 0;
                 for (k = 0; k < result.length-1; k++) {
@@ -777,7 +795,8 @@ function epochParser(){
     <select name='route'>
         <option value="route">Route 1</option>
     </select>
-    <div>
+    <p style="display: inline-block" name='date'></p>
+    </div>
 
     <div style="display: inline-block; height: 900px; width: 600px">
         <div id="map" style="height: 900px; width: 600px; display:inline-block;"></div>
@@ -836,7 +855,7 @@ function epochParser(){
     })
 
     //Day Maker
-    var days = "11,17,21,25,27,29,33,35,47,61,63,69,75,77,87,91,95,97,99,105,111,131,133,137,141,143,145,147,151,311,313"
+    var days = "11,17,21,25,27,29,33,35,47,61,63,69,75,77,87,91,95,97,99,105,111,129,131,133,137,141,143,145,147,151,311,313"
 
     var splitedDays = days.split(',');
     $('select[name=day]').empty();
@@ -849,6 +868,7 @@ function epochParser(){
         var chosenDay = $(this).val();
         userDay = chosenDay;
         dayPoller();
+        $('p[name=date]').empty();
     })
 
 
